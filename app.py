@@ -1,5 +1,6 @@
 """
 Backend API - Receive Images and Audio, Store in Supabase
+Includes Voice Recognition for Patient Detection
 """
 
 from flask import Flask, request, jsonify
@@ -8,10 +9,22 @@ import os
 from datetime import datetime
 from pathlib import Path
 from supabase import create_client, Client
+from robust_voice_system import RobustVoiceSystem
+import tempfile
 
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)
+
+# Initialize Voice Recognition System
+print("Loading voice recognition system...")
+voice_system = RobustVoiceSystem()
+try:
+    voice_profile = voice_system.load_profile("patient_voice_robust.pkl")
+    print("✅ Voice recognition ready!")
+except Exception as e:
+    print(f"⚠️  Voice recognition not available: {e}")
+    voice_profile = None
 
 # Supabase Configuration
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
@@ -246,6 +259,66 @@ def list_files():
                 'files': sorted(audio)
             }
         }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/verify/voice', methods=['POST'])
+def verify_voice():
+    """
+    Verify if audio contains patient's voice
+    Returns: should_take_photos (boolean)
+    """
+    try:
+        if not voice_profile:
+            return jsonify({
+                'success': False,
+                'error': 'Voice recognition not available'
+            }), 503
+        
+        if 'audio' not in request.files:
+            return jsonify({
+                'success': False,
+                'error': 'No audio provided'
+            }), 400
+        
+        audio_file = request.files['audio']
+        
+        # Save to temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
+            audio_file.save(temp_file.name)
+            temp_path = temp_file.name
+        
+        try:
+            # Verify voice
+            is_patient, max_similarity, mean_similarity = voice_system.verify_voice_robust(
+                temp_path, 
+                voice_profile, 
+                threshold=0.70
+            )
+            
+            # Clean up temp file
+            os.unlink(temp_path)
+            
+            return jsonify({
+                'success': True,
+                'is_patient_voice': is_patient,
+                'should_take_photos': is_patient,
+                'max_similarity': float(max_similarity),
+                'mean_similarity': float(mean_similarity),
+                'threshold': 0.70,
+                'message': 'Patient detected - take photos!' if is_patient else 'Patient not speaking - skip photos'
+            }), 200
+            
+        except Exception as e:
+            # Clean up temp file on error
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+            raise e
         
     except Exception as e:
         return jsonify({
