@@ -120,11 +120,21 @@ def upload_image():
                 # Parse timestamp from filename or use current time
                 from datetime import timezone
                 
-                if 'pic_' in filename and '+' in filename:
-                    parts = filename.replace('pic_', '').replace('.jpg', '').replace('.png', '').split('+')
+                # Remove folder prefix before parsing
+                base_filename = filename.split('/')[-1] if '/' in filename else filename
+                
+                if 'pic_' in base_filename and '+' in base_filename:
+                    parts = base_filename.replace('pic_', '').replace('.jpg', '').replace('.png', '').split('+')
                     date_part = parts[0]  # 2025-11-08
-                    time_part = parts[1].replace('-', ':')  # 01:07 -> 01:07
-                    captured_at = datetime.strptime(f"{date_part} {time_part}:00", "%Y-%m-%d %H:%M:%S")
+                    time_part = parts[1].replace('-', ':')  # 17:37:03 or 17:37
+                    
+                    # Handle both formats: HH:MM:SS and HH:MM
+                    if time_part.count(':') == 2:
+                        # Format: HH:MM:SS (e.g., 17:37:03)
+                        captured_at = datetime.strptime(f"{date_part} {time_part}", "%Y-%m-%d %H:%M:%S")
+                    else:
+                        # Format: HH:MM (e.g., 17:37)
+                        captured_at = datetime.strptime(f"{date_part} {time_part}:00", "%Y-%m-%d %H:%M:%S")
                 else:
                     captured_at = datetime.now()
                 
@@ -260,10 +270,16 @@ def upload_audio():
                 if 'audio_' in base_filename and '+' in base_filename:
                     parts = base_filename.replace('audio_', '').replace('.wav', '').replace('.mp3', '').split('+')
                     date_part = parts[0]  # 2025-11-08
-                    end_time_part = parts[1].replace('-', ':')  # 01:05
+                    time_part = parts[1].replace('-', ':')  # 17:37:03 or 17:37
                     
-                    # Calculate start and end times (5-minute chunk)
-                    end_time = datetime.strptime(f"{date_part} {end_time_part}:00", "%Y-%m-%d %H:%M:%S")
+                    # Handle both formats: HH:MM:SS and HH:MM
+                    if time_part.count(':') == 2:
+                        # Format: HH:MM:SS (e.g., 17:37:03)
+                        end_time = datetime.strptime(f"{date_part} {time_part}", "%Y-%m-%d %H:%M:%S")
+                    else:
+                        # Format: HH:MM (e.g., 17:37)
+                        end_time = datetime.strptime(f"{date_part} {time_part}:00", "%Y-%m-%d %H:%M:%S")
+                    
                     start_time = end_time - timedelta(minutes=5)
                 else:
                     # Use current time if filename doesn't match pattern
