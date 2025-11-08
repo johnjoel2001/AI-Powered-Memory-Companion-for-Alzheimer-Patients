@@ -8,6 +8,8 @@ CREATE TABLE audio_chunks (
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP NOT NULL,
     has_conversation BOOLEAN DEFAULT NULL,
+    transcription TEXT DEFAULT NULL,
+    transcribed_at TIMESTAMP DEFAULT NULL,
     uploaded_at TIMESTAMP DEFAULT NOW()
 );
 

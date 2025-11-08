@@ -11,6 +11,7 @@ from pathlib import Path
 from supabase import create_client, Client
 from robust_voice_system import RobustVoiceSystem
 import tempfile
+from openai import OpenAI
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -34,10 +35,18 @@ def get_voice_system():
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '')
 
+# OpenAI Configuration
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+
 # Initialize Supabase client
 supabase: Client = None
 if SUPABASE_URL and SUPABASE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# Initialize OpenAI client
+openai_client = None
+if OPENAI_API_KEY:
+    openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Local storage as fallback
 UPLOAD_FOLDER = 'data'
@@ -319,6 +328,82 @@ def verify_voice():
                 'mean_similarity': float(mean_similarity),
                 'threshold': 0.70,
                 'message': 'Patient detected - take photos!' if is_patient else 'Patient not speaking - skip photos'
+            }), 200
+            
+        except Exception as e:
+            # Clean up temp file on error
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+            raise e
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/transcribe/audio', methods=['POST'])
+def transcribe_audio():
+    """
+    Transcribe audio to text using OpenAI Whisper API
+    and store in Supabase audio_chunks table
+    """
+    try:
+        if not openai_client:
+            return jsonify({
+                'success': False,
+                'error': 'OpenAI API not configured'
+            }), 503
+        
+        if 'audio' not in request.files:
+            return jsonify({
+                'success': False,
+                'error': 'No audio provided'
+            }), 400
+        
+        audio_file = request.files['audio']
+        filename = audio_file.filename
+        
+        # Save to temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
+            audio_file.save(temp_file.name)
+            temp_path = temp_file.name
+        
+        try:
+            # Transcribe using OpenAI Whisper
+            print(f"Transcribing: {filename}")
+            with open(temp_path, 'rb') as audio:
+                transcript = openai_client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio,
+                    language="en"
+                )
+            
+            transcription_text = transcript.text
+            print(f"Transcription complete: {len(transcription_text)} characters")
+            
+            # Clean up temp file
+            os.unlink(temp_path)
+            
+            # Update Supabase audio_chunks table with transcription
+            if supabase:
+                try:
+                    result = supabase.table('audio_chunks').update({
+                        'transcription': transcription_text,
+                        'transcribed_at': datetime.now().isoformat()
+                    }).eq('filename', filename).execute()
+                    
+                    print(f"✅ Transcription saved to Supabase for: {filename}")
+                except Exception as db_error:
+                    print(f"⚠️  Failed to save to Supabase: {db_error}")
+            
+            return jsonify({
+                'success': True,
+                'filename': filename,
+                'transcription': transcription_text,
+                'character_count': len(transcription_text),
+                'message': 'Audio transcribed successfully'
             }), 200
             
         except Exception as e:
