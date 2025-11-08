@@ -101,6 +101,8 @@ def upload_image():
                 from datetime import datetime
                 
                 # Parse timestamp from filename or use current time
+                from datetime import timezone
+                
                 if 'pic_' in filename and '+' in filename:
                     parts = filename.replace('pic_', '').replace('.jpg', '').replace('.png', '').split('+')
                     date_part = parts[0]  # 2025-11-08
@@ -109,25 +111,32 @@ def upload_image():
                 else:
                     captured_at = datetime.now()
                 
+                # Make captured_at timezone-aware (UTC)
+                if captured_at.tzinfo is None:
+                    captured_at = captured_at.replace(tzinfo=timezone.utc)
+                
                 # Find matching audio chunk based on timestamp
                 # Image captured_at should fall between audio start_time and end_time
                 audio_chunk_id = None
                 try:
-                    result = supabase.table('audio_chunks').select('id, start_time, end_time').execute()
+                    result = supabase.table('audio_chunks').select('id, start_time, end_time, filename').execute()
                     for chunk in result.data:
-                        start = datetime.fromisoformat(chunk['start_time'].replace('Z', '+00:00'))
-                        end = datetime.fromisoformat(chunk['end_time'].replace('Z', '+00:00'))
+                        # Parse timestamps and make timezone-aware
+                        start_str = chunk['start_time'].replace('Z', '+00:00') if 'Z' in chunk['start_time'] else chunk['start_time']
+                        end_str = chunk['end_time'].replace('Z', '+00:00') if 'Z' in chunk['end_time'] else chunk['end_time']
                         
-                        # Make captured_at timezone-aware if needed
-                        if captured_at.tzinfo is None:
-                            from datetime import timezone
-                            captured_at_aware = captured_at.replace(tzinfo=timezone.utc)
-                        else:
-                            captured_at_aware = captured_at
+                        start = datetime.fromisoformat(start_str)
+                        end = datetime.fromisoformat(end_str)
                         
-                        if start <= captured_at_aware <= end:
+                        # Make timezone-aware if not already
+                        if start.tzinfo is None:
+                            start = start.replace(tzinfo=timezone.utc)
+                        if end.tzinfo is None:
+                            end = end.replace(tzinfo=timezone.utc)
+                        
+                        if start <= captured_at <= end:
                             audio_chunk_id = chunk['id']
-                            print(f"✅ Matched image to audio chunk: {audio_chunk_id}")
+                            print(f"✅ Matched image to audio chunk: {chunk['filename']}")
                             break
                 except Exception as e:
                     print(f"⚠️  Could not find matching audio chunk: {e}")
@@ -227,8 +236,11 @@ def upload_audio():
                 from datetime import datetime, timedelta
                 
                 # Try to parse timestamp from filename
-                if 'audio_' in filename and '+' in filename:
-                    parts = filename.replace('audio_', '').replace('.wav', '').replace('.mp3', '').split('+')
+                # Remove folder prefix (e.g., "temp/") before parsing
+                base_filename = filename.split('/')[-1] if '/' in filename else filename
+                
+                if 'audio_' in base_filename and '+' in base_filename:
+                    parts = base_filename.replace('audio_', '').replace('.wav', '').replace('.mp3', '').split('+')
                     date_part = parts[0]  # 2025-11-08
                     end_time_part = parts[1].replace('-', ':')  # 01:05
                     
