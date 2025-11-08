@@ -102,7 +102,7 @@ def upload_audio():
         file = request.files['audio']
         
         # Use original filename from Raspberry Pi
-        # Format: 01-05.wav, 01-10.wav (hour-minute, end time of 5-min chunk)
+        # Format: audio_2025-11-08+01-05.wav (date + hour-minute, end time of 5-min chunk)
         filename = file.filename if file.filename else f"audio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
         
         # Read file data
