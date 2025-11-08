@@ -16,15 +16,19 @@ import tempfile
 app = Flask(__name__)
 CORS(app)
 
-# Initialize Voice Recognition System
-print("Loading voice recognition system...")
-voice_system = RobustVoiceSystem()
-try:
-    voice_profile = voice_system.load_profile("patient_voice_robust.pkl")
-    print("✅ Voice recognition ready!")
-except Exception as e:
-    print(f"⚠️  Voice recognition not available: {e}")
-    voice_profile = None
+# Initialize Voice Recognition System (lazy loading)
+voice_system = None
+voice_profile = None
+
+def get_voice_system():
+    """Lazy load voice system only when needed"""
+    global voice_system, voice_profile
+    if voice_system is None:
+        print("Loading voice recognition system...")
+        voice_system = RobustVoiceSystem()
+        voice_profile = voice_system.load_profile("patient_voice_robust.pkl")
+        print("✅ Voice recognition ready!")
+    return voice_system, voice_profile
 
 # Supabase Configuration
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
@@ -274,17 +278,20 @@ def verify_voice():
     Returns: should_take_photos (boolean)
     """
     try:
-        if not voice_profile:
-            return jsonify({
-                'success': False,
-                'error': 'Voice recognition not available'
-            }), 503
-        
         if 'audio' not in request.files:
             return jsonify({
                 'success': False,
                 'error': 'No audio provided'
             }), 400
+        
+        # Lazy load voice system
+        try:
+            vs, vp = get_voice_system()
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Voice recognition not available: {str(e)}'
+            }), 503
         
         audio_file = request.files['audio']
         
@@ -295,9 +302,9 @@ def verify_voice():
         
         try:
             # Verify voice
-            is_patient, max_similarity, mean_similarity = voice_system.verify_voice_robust(
+            is_patient, max_similarity, mean_similarity = vs.verify_voice_robust(
                 temp_path, 
-                voice_profile, 
+                vp, 
                 threshold=0.70
             )
             

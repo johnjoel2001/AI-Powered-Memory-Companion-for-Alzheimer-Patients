@@ -4,7 +4,7 @@ Werkzeug==3.0.1
 python-dotenv==1.0.0
 gunicorn==21.2.0
 supabase==2.10.0
+numpy==1.26.4
 resemblyzer==0.1.4
 librosa==0.11.0
 soundfile==0.13.1
-numpy==1.24.3
