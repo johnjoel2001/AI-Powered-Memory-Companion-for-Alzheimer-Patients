@@ -144,9 +144,15 @@ def upload_audio():
         
         file = request.files['audio']
         
+        # Check if folder parameter is provided (e.g., "temp")
+        folder = request.form.get('folder', '')
+        
         # Use original filename from Raspberry Pi
         # Format: audio_2025-11-08+01-05.wav (date + hour-minute, end time of 5-min chunk)
-        filename = file.filename if file.filename else f"audio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+        base_filename = file.filename if file.filename else f"audio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+        
+        # Add folder prefix if provided
+        filename = f"{folder}/{base_filename}" if folder else base_filename
         
         # Read file data
         file_data = file.read()
@@ -455,7 +461,7 @@ def transcribe_audio():
         }), 500
 
 
-@app.route('/sync/temp-audio', methods=['POST'])
+@app.route('/sync/temp-audio', methods=['POST', 'GET'])
 def sync_temp_audio():
     """
     Scan the 'temp' folder in Supabase storage and add audio files to database with transcription
