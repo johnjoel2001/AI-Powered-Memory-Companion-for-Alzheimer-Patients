@@ -107,13 +107,12 @@ class SimpleVoiceTrainer:
         # Extract features from test audio
         test_features = self.extract_voice_features(test_audio_path)
         
-        # Normalize using saved scaler
-        test_features_normalized = self.scaler.transform(test_features.reshape(1, -1)).flatten()
+        # Calculate cosine similarity directly (without normalization issues)
+        patient_features = patient_profile['features']
         
-        # Calculate cosine similarity
-        patient_features = patient_profile['features_normalized']
-        similarity = np.dot(test_features_normalized, patient_features) / (
-            np.linalg.norm(test_features_normalized) * np.linalg.norm(patient_features)
+        # Cosine similarity
+        similarity = np.dot(test_features, patient_features) / (
+            np.linalg.norm(test_features) * np.linalg.norm(patient_features) + 1e-10
         )
         
         is_match = similarity > threshold
