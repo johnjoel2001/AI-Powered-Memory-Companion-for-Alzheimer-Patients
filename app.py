@@ -187,14 +187,21 @@ def upload_audio():
             # Extract timestamp from filename: audio_2025-11-08+01-05.wav
             # Format: audio_YYYY-MM-DD+HH-MM.wav (end time of 5-min chunk)
             try:
-                parts = filename.replace('audio_', '').replace('.wav', '').split('+')
-                date_part = parts[0]  # 2025-11-08
-                end_time_part = parts[1].replace('-', ':')  # 01:05
-                
-                # Calculate start and end times (5-minute chunk)
                 from datetime import datetime, timedelta
-                end_time = datetime.strptime(f"{date_part} {end_time_part}:00", "%Y-%m-%d %H:%M:%S")
-                start_time = end_time - timedelta(minutes=5)
+                
+                # Try to parse timestamp from filename
+                if 'audio_' in filename and '+' in filename:
+                    parts = filename.replace('audio_', '').replace('.wav', '').replace('.mp3', '').split('+')
+                    date_part = parts[0]  # 2025-11-08
+                    end_time_part = parts[1].replace('-', ':')  # 01:05
+                    
+                    # Calculate start and end times (5-minute chunk)
+                    end_time = datetime.strptime(f"{date_part} {end_time_part}:00", "%Y-%m-%d %H:%M:%S")
+                    start_time = end_time - timedelta(minutes=5)
+                else:
+                    # Use current time if filename doesn't match pattern
+                    end_time = datetime.now()
+                    start_time = end_time - timedelta(minutes=5)
                 
                 # Insert into audio_chunks table with transcription
                 supabase.table('audio_chunks').insert({
@@ -205,8 +212,9 @@ def upload_audio():
                     'transcription': transcription_text,
                     'transcribed_at': datetime.now().isoformat() if transcription_text else None
                 }).execute()
+                print(f"✅ Inserted into database: {filename}")
             except Exception as e:
-                print(f"Warning: Could not insert into database: {e}")
+                print(f"⚠️  Could not insert into database: {e}")
         else:
             # Fallback to local storage
             filepath = os.path.join(AUDIO_FOLDER, filename)
