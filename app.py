@@ -151,6 +151,30 @@ def upload_audio():
         # Read file data
         file_data = file.read()
         
+        # Save to temporary file for transcription
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
+            temp_file.write(file_data)
+            temp_path = temp_file.name
+        
+        # Transcribe audio using OpenAI Whisper (if available)
+        transcription_text = None
+        if openai_client:
+            try:
+                print(f"Auto-transcribing: {filename}")
+                with open(temp_path, 'rb') as audio:
+                    transcript = openai_client.audio.transcriptions.create(
+                        model="whisper-1",
+                        file=audio,
+                        language="en"
+                    )
+                transcription_text = transcript.text
+                print(f"✅ Transcription complete: {len(transcription_text)} characters")
+            except Exception as e:
+                print(f"⚠️  Transcription failed: {e}")
+        
+        # Clean up temp file
+        os.unlink(temp_path)
+        
         # Upload to Supabase Storage
         if supabase:
             supabase.storage.from_('alzheimer-audio').upload(
@@ -172,12 +196,14 @@ def upload_audio():
                 end_time = datetime.strptime(f"{date_part} {end_time_part}:00", "%Y-%m-%d %H:%M:%S")
                 start_time = end_time - timedelta(minutes=5)
                 
-                # Insert into audio_chunks table
+                # Insert into audio_chunks table with transcription
                 supabase.table('audio_chunks').insert({
                     'filename': filename,
                     'storage_url': storage_url,
                     'start_time': start_time.isoformat(),
-                    'end_time': end_time.isoformat()
+                    'end_time': end_time.isoformat(),
+                    'transcription': transcription_text,
+                    'transcribed_at': datetime.now().isoformat() if transcription_text else None
                 }).execute()
             except Exception as e:
                 print(f"Warning: Could not insert into database: {e}")
@@ -190,9 +216,11 @@ def upload_audio():
         
         return jsonify({
             'success': True,
-            'message': 'Audio received and stored successfully',
+            'message': 'Audio received, stored, and transcribed successfully',
             'filename': filename,
-            'url': storage_url
+            'url': storage_url,
+            'transcription': transcription_text,
+            'transcription_length': len(transcription_text) if transcription_text else 0
         }), 200
         
     except Exception as e:
