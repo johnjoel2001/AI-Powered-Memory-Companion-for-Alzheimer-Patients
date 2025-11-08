@@ -455,6 +455,107 @@ def transcribe_audio():
         }), 500
 
 
+@app.route('/sync/temp-audio', methods=['POST'])
+def sync_temp_audio():
+    """
+    Scan the 'temp' folder in Supabase storage and add audio files to database with transcription
+    """
+    try:
+        if not supabase:
+            return jsonify({
+                'success': False,
+                'error': 'Supabase not configured'
+            }), 503
+        
+        # List all files in the temp folder
+        files = supabase.storage.from_('alzheimer-audio').list('temp')
+        
+        synced_files = []
+        errors = []
+        
+        for file_obj in files:
+            try:
+                filename = f"temp/{file_obj['name']}"
+                
+                # Check if already in database
+                existing = supabase.table('audio_chunks').select('filename').eq('filename', filename).execute()
+                if existing.data:
+                    print(f"⏭️  Skipping (already in DB): {filename}")
+                    continue
+                
+                # Download file from storage
+                file_data = supabase.storage.from_('alzheimer-audio').download(filename)
+                
+                # Save to temp file for transcription
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
+                    temp_file.write(file_data)
+                    temp_path = temp_file.name
+                
+                # Transcribe if OpenAI available
+                transcription_text = None
+                if openai_client:
+                    try:
+                        print(f"Transcribing: {filename}")
+                        with open(temp_path, 'rb') as audio:
+                            transcript = openai_client.audio.transcriptions.create(
+                                model="whisper-1",
+                                file=audio,
+                                language="en"
+                            )
+                        transcription_text = transcript.text
+                        print(f"✅ Transcribed: {len(transcription_text)} chars")
+                    except Exception as e:
+                        print(f"⚠️  Transcription failed: {e}")
+                
+                # Clean up temp file
+                os.unlink(temp_path)
+                
+                # Get storage URL
+                storage_url = supabase.storage.from_('alzheimer-audio').get_public_url(filename)
+                
+                # Parse timestamp or use current time
+                from datetime import datetime, timedelta
+                end_time = datetime.now()
+                start_time = end_time - timedelta(minutes=5)
+                
+                # Insert into database
+                supabase.table('audio_chunks').insert({
+                    'filename': filename,
+                    'storage_url': storage_url,
+                    'start_time': start_time.isoformat(),
+                    'end_time': end_time.isoformat(),
+                    'transcription': transcription_text,
+                    'transcribed_at': datetime.now().isoformat() if transcription_text else None
+                }).execute()
+                
+                synced_files.append({
+                    'filename': filename,
+                    'transcription_length': len(transcription_text) if transcription_text else 0
+                })
+                print(f"✅ Synced: {filename}")
+                
+            except Exception as e:
+                errors.append({
+                    'filename': file_obj['name'],
+                    'error': str(e)
+                })
+                print(f"❌ Error syncing {file_obj['name']}: {e}")
+        
+        return jsonify({
+            'success': True,
+            'synced_count': len(synced_files),
+            'error_count': len(errors),
+            'synced_files': synced_files,
+            'errors': errors
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 if __name__ == '__main__':
     print("=" * 60)
     print("Alzheimer's Camera Backend - Simple Version")
