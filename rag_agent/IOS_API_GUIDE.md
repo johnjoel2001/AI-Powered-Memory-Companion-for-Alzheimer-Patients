@@ -1,9 +1,11 @@
-# MemerAI Backend API - iOS Integration Guide
+# MemorAI API - iOS Integration Guide
 
 ## 🚀 API Base URL
 ```
-https://sparklingly-kempt-terese.ngrok-free.dev
+https://2025-ai-hackathon-raspberry-api-api-production-5bd5.up.railway.app
 ```
+
+**Note:** This is deployed on Railway and works 24/7! No need to keep your laptop running.
 
 ---
 
@@ -136,7 +138,7 @@ struct AskResponse: Codable {
 import Foundation
 
 class MemerAIService {
-    let baseURL = "https://sparklingly-kempt-terese.ngrok-free.dev"
+    let baseURL = "https://2025-ai-hackathon-raspberry-api-api-production-5bd5.up.railway.app"
     
     // Start a new conversation
     func startConversation() async throws -> ConversationStart {
@@ -369,11 +371,11 @@ The backend uses **3-tier matching**:
 ### Test with cURL
 ```bash
 # Start conversation
-curl -X POST https://sparklingly-kempt-terese.ngrok-free.dev/api/start \
+curl -X POST https://2025-ai-hackathon-raspberry-api-api-production-5bd5.up.railway.app/api/start \
   -H "Content-Type: application/json"
 
 # Submit answer
-curl -X POST https://sparklingly-kempt-terese.ngrok-free.dev/api/answer \
+curl -X POST https://2025-ai-hackathon-raspberry-api-api-production-5bd5.up.railway.app/api/answer \
   -H "Content-Type: application/json" \
   -d '{
     "session_id": "your-session-id",
