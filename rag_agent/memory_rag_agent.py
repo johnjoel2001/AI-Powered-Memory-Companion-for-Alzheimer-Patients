@@ -10,6 +10,10 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from openai import OpenAI
 from supabase import create_client, Client
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 
 class MemoryRAGAgent:
