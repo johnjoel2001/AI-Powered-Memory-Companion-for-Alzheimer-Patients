@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MemorEye - Photo Memory Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .photo-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .photo {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: none;
+        }
+
+        .photo.visible {
+            display: inline-block;
+        }
+
+        .chat-box {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 150px;
+        }
+
+        .message {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 10px;
+            animation: fadeIn 0.5s;
+        }
+
+        .bot-message {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+
+        .user-message {
+            background: #f3e5f5;
+            border-left: 4px solid #9c27b0;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .score {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #666;
+            display: none;
+        }
+
+        .score.visible {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-size: 1.2em;
+            margin: 20px 0;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .emoji {
+            font-size: 1.5em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖼️ MemorEye Photo Chat</h1>
+        <p class="subtitle">Let's look at some photos together!</p>
+
+        <div class="photo-container">
+            <img id="currentPhoto" class="photo" src="" alt="Memory Photo">
+        </div>
+
+        <div class="chat-box" id="chatBox">
+            <div class="loading" id="loading">Starting conversation...</div>
+        </div>
+
+        <div class="input-area" id="inputArea" style="display: none;">
+            <input type="text" id="answerInput" placeholder="Type your answer here..." 
+                   onkeypress="if(event.key==='Enter') submitAnswer()">
+            <button onclick="submitAnswer()">Submit</button>
+        </div>
+
+        <div class="score" id="scoreDisplay"></div>
+    </div>
+
+    <script>
+        let sessionId = null;
+        let currentScore = { correct: 0, total: 0 };
+
+        // Start conversation on page load
+        window.onload = function() {
+            startConversation();
+        };
+
+        async function startConversation() {
+            try {
+                const response = await fetch('/api/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    sessionId = data.session_id;
+                    currentScore.total = data.total_questions;
+
+                    // Show greeting
+                    addMessage('bot', data.greeting);
+                    
+                    // Show photo
+                    showPhoto(data.image_url);
+                    
+                    // Show question
+                    setTimeout(() => {
+                        addMessage('bot', data.question);
+                        document.getElementById('inputArea').style.display = 'flex';
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('answerInput').focus();
+                    }, 1000);
+
+                    updateScore();
+                } else {
+                    addMessage('bot', '❌ ' + (data.message || data.error));
+                    document.getElementById('loading').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error starting conversation:', error);
+                addMessage('bot', '❌ Failed to start conversation. Please try again.');
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        async function submitAnswer() {
+            const input = document.getElementById('answerInput');
+            const answer = input.value.trim();
+
+            if (!answer) return;
+
+            // Show user's answer
+            addMessage('user', answer);
+            input.value = '';
+            input.disabled = true;
+
+            try {
+                const response = await fetch('/api/answer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        answer: answer
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Show bot response
+                    addMessage('bot', data.response);
+
+                    if (data.correct) {
+                        currentScore.correct++;
+                        updateScore();
+                    }
+
+                    if (data.is_end) {
+                        // Conversation ended
+                        if (data.final_message) {
+                            setTimeout(() => {
+                                addMessage('bot', data.final_message);
+                            }, 1000);
+                        }
+                        document.getElementById('inputArea').style.display = 'none';
+                        document.getElementById('scoreDisplay').classList.add('visible');
+                    } else if (data.next_question) {
+                        // Show next photo and question
+                        setTimeout(() => {
+                            showPhoto(data.image_url);
+                            setTimeout(() => {
+                                addMessage('bot', data.next_question);
+                                input.disabled = false;
+                                input.focus();
+                            }, 1000);
+                        }, 1500);
+                    } else {
+                        // Wrong answer, try again
+                        input.disabled = false;
+                        input.focus();
+                    }
+                } else {
+                    addMessage('bot', '❌ ' + (data.error || 'Something went wrong'));
+                    input.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error submitting answer:', error);
+                addMessage('bot', '❌ Failed to submit answer. Please try again.');
+                input.disabled = false;
+            }
+        }
+
+        function addMessage(type, text) {
+            const chatBox = document.getElementById('chatBox');
+            const message = document.createElement('div');
+            message.className = `message ${type}-message`;
+            message.textContent = text;
+            chatBox.appendChild(message);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function showPhoto(url) {
+            const photo = document.getElementById('currentPhoto');
+            photo.src = url;
+            photo.classList.add('visible');
+        }
+
+        function updateScore() {
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            scoreDisplay.textContent = `Score: ${currentScore.correct}/${currentScore.total}`;
+        }
+    </script>
+</body>
+</html>
