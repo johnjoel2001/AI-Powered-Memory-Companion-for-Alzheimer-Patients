@@ -1,0 +1,16 @@
+Memory Training Session - 20251108_172229
+==================================================
+
+ASSISTANT: Hi—it's great to see you and I'm glad you're here. How are you feeling today?
+
+USER: okay
+
+ASSISTANT: Got it — you're feeling okay, and I'll now start the memory questions.
+
+
+==================================================
+SESSION RESULTS
+==================================================
+✓ Who was having lunch with you yesterday? (attempts: 2)
+✗ Where were you having lunch yesterday? (attempts: 3)
+✗ What did you talk about with your daughter yesterday? (attempts: 2)

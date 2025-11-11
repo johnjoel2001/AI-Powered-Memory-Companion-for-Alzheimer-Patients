@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: memerai-backend
+    env: python
+    branch: john/RAG-AGENT
+    rootDir: rag_agent
+    buildCommand: pip install -r requirements.txt
+    startCommand: python memerai_ui.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false

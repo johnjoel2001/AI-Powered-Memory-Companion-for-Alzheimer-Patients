@@ -1,0 +1,34 @@
+Memory Training Session - 20251108_165002
+==================================================
+
+ASSISTANT: Hi—good to see you today. How are you feeling right now? Anything on your mind you'd like to share before we get started?
+
+I just want to check in and say whatever you're feeling is okay—nervous, curious, tired, or ready to go. If you had a rough night or a busy morning, that's fine; we'll take things at a comfortable pace. If you're feeling upbeat, we can use that energy for some fun practice.
+
+A couple quick questions so I can tailor the warm-up:
+- How is your energy level—low, okay, or high?
+- Any specific memory worries or goals today (remembering names, appointments, lists, conversations)?
+- Would you like a very gentle breathing/mindfulness minute first to settle, or jump straight into a light, friendly exercise?
+
+If you like, we can start with something simple and pleasant—talking about a favorite hobby, movie, or a recent small win you had. Or I can give a quick 3-item memory game to get your brain warmed up. Which sounds best to you?
+
+No pressure—take a moment, tell me how you're feeling, and we'll go from there. I’m here to help and cheer you on.
+
+USER: let's just continue
+
+ASSISTANT: Great — here's a quick warm-up.
+
+Remember these five words (read them once):
+orchard, violin, lantern, maple, compass.
+
+Now answer one quick question (this helps distract your memory briefly): what’s one thing you did this morning?
+
+When you’ve answered, I’ll ask you to recall the five words. If any are hard, I can give a hint.
+
+
+==================================================
+SESSION RESULTS
+==================================================
+✗ Who was having lunch with you yesterday? (attempts: 3)
+✓ Where were you having lunch yesterday? (attempts: 2)
+✓ What did you talk about with your daughter yesterday? (attempts: 3)
